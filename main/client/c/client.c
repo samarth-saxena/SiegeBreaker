@@ -37,7 +37,7 @@
 //#define DEBUG 0
 char *target_ip;
 //This is client's IP
-#define self_ip "192.168.2.3"
+#define self_ip "192.168.2.2"
 
 /*
  * Client's Main function : Responsible for actual communication as a anti censorship solution.
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 
     char *str = (char *) malloc(100);
     int len;
-    len = snprintf(str, 100, "../webmail/client_send.py 192.168.2.4 192.168.2.4 %s %d", argv[4], resp->port);
+    len = snprintf(str, 100, "../smtp/smtp_client_send.py 192.168.2.4 192.168.2.4 %s %d", argv[4], resp->port);
     printf("\n%s\n",str);
     system(str);
 
