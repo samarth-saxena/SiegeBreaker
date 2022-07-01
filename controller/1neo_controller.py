@@ -57,6 +57,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
         self.add_flow(datapath, 0, match, actions)
+        self.add_flow(datapath, 0, match, actions, table_id=100)
 
     # Adding default rules in table 100
     def add_table_100_redirection(self, dp, buffer_id):
@@ -72,7 +73,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
-        self.add_flow(dp, 0, match, actions, table_id=100)
+        self.add_flow(dp, 0, match, actions, table_id=200)
 
     def add_icmp_redirection(self, dp, buffer_id):
     #hardware match i.e. tabel 100 for all ICMP packets
