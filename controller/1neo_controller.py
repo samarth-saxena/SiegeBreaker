@@ -66,13 +66,13 @@ class SimpleSwitch13(app_manager.RyuApp):
             
         actions = [parser.OFPActionOutput(ofproto.OFPP_NORMAL, 0)]
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
-        msg = parser.OFPFlowMod(datapath=dp, buffer_id = buffer_id, table_id = 100, priority = 2, match=match1, instructions=inst)
+        msg = parser.OFPFlowMod(datapath=dp, buffer_id = buffer_id, table_id = 200, priority = 2, match=match1, instructions=inst)
         dp.send_msg(msg)
         print ('pushing table 200 rules')    
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
-        self.add_flow(dp, 0, match, actions, table_id=200)
+        self.add_flow(dp, 0, match, actions, table_id=100)
 
     def add_icmp_redirection(self, dp, buffer_id):
     #hardware match i.e. tabel 100 for all ICMP packets
@@ -83,7 +83,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                             ofproto.OFPCML_NO_BUFFER)]
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
-        msg = parser.OFPFlowMod(datapath=dp, buffer_id=buffer_id, table_id=100, priority=30000, match=match1, instructions=inst)
+        msg = parser.OFPFlowMod(datapath=dp, buffer_id=buffer_id, table_id=200, priority=30000, match=match1, instructions=inst)
         dp.send_msg(msg) 
 
 
@@ -99,12 +99,12 @@ class SimpleSwitch13(app_manager.RyuApp):
             #actions = [parser.OFPActionSetField(eth_dst=cd_mac_usb), parser.OFPActionOutput(6)]
         actions = [parser.OFPActionOutput(6)]
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS, actions)]
-        msg = parser.OFPFlowMod(datapath=dp, buffer_id=buffer_id, table_id=100, priority=20000, match=match1, instructions = inst)
+        msg = parser.OFPFlowMod(datapath=dp, buffer_id=buffer_id, table_id=200, priority=20000, match=match1, instructions = inst)
         dp.send_msg(msg)
 
 
     # Function to add normal routing/switching flows apart from DR flows
-    def add_flow(self, datapath, priority, match, actions, buffer_id=None, table_id=100, redirect_table=False, src_ip="", dst_ip=""):
+    def add_flow(self, datapath, priority, match, actions, buffer_id=None, table_id=200, redirect_table=False, src_ip="", dst_ip=""):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
         #print 'adding flow', match, redirect_table, datapath, actions
@@ -113,7 +113,7 @@ class SimpleSwitch13(app_manager.RyuApp):
             inst = []
             match1 = parser.OFPMatch(ipv4_src=src_ip, ipv4_dst=dst_ip)
             inst.append(parser.OFPInstructionGotoTable(200))
-            msg = parser.OFPFlowMod(datapath=datapath, table_id=100, priority=3, match=match1, instructions=inst) # more priority than the controller, but less than the decoy flows
+            msg = parser.OFPFlowMod(datapath=datapath, table_id=table_id, priority=3, match=match1, instructions=inst) # more priority than the controller, but less than the decoy flows
             datapath.send_msg(msg)
             #print 'sending_redirect_table'
             table_id = 200
@@ -205,11 +205,11 @@ class SimpleSwitch13(app_manager.RyuApp):
             actions = [parser.OFPActionOutput(ofproto.OFPP_NORMAL, 0)]
 
             #install decoy routing flows if not already done
-            if self.flag is False:
+            # if self.flag is False:
                     #self.add_redirection_flows(datapath, msg.buffer_id)
-                self.add_table_100_redirection(datapath, msg.buffer_id)
-                self.add_icmp_redirection(datapath, msg.buffer_id)
-                self.flag = True
+            self.add_table_100_redirection(datapath, msg.buffer_id)
+            self.add_icmp_redirection(datapath, msg.buffer_id)
+                # self.flag = True
 
             # install a flow to avoid packet_in next time
             if out_port != ofproto.OFPP_FLOOD:
