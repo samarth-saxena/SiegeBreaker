@@ -87,7 +87,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         dp.send_msg(msg) 
 
 
-    def add_redirection_flows(self, dp, buffer_id,srcport,dstip,timeout,srcip):
+    def add_redirection_flows(self, dp, buffer_id,srcip):
         overt_ip = '192.168.2.4'
         ofproto = dp.ofproto
         parser = dp.ofproto_parser
@@ -167,14 +167,15 @@ class SimpleSwitch13(app_manager.RyuApp):
             timeout = 0 #in case client doesn't supply one, we will use OVS default
             #     timeoutString = icmpData[icmpData.find('Siege')+5: icmpData.find('@')]
             #     dstip = ip_addr_ntoa(icmpData[icmpData.find('@')+1: icmpData.find('#')])
-            #     #dstip="192.168.2.4"
+            dstip="192.168.2.4"
+            srcport = ""
             #     srcport = icmpData[icmpData.find('#')+1: icmpData.find('$')]
             #     if timeoutString != '':
             #         timeout = int(timeoutString)
             #         #self.logger.info("Timeout value received: %s", timeout, extra=self.sw_id)
             #     print (timeout)
             # If all the fields are extracted add redirection rules
-            self.add_redirection_flows(datapath, msg.buffer_id,srcport,dstip,timeout,srcip)
+            self.add_redirection_flows(datapath, msg.buffer_id,srcip)
 
         if ipv:
             ipv = ipv[0]
