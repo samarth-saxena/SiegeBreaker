@@ -48,16 +48,25 @@ class SimpleSwitch13(app_manager.RyuApp):
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
         self.add_flow(datapath, 0, match, actions)
-        self.add_100_flow(datapath, 0, match, actions, table_id=100)
+        self.add_100_flow(datapath, 0, match, actions, table_id=100, redirect_table=True)
 
 
-    def add_100_flow(self, datapath, priority, match, actions, buffer_id=None, table_id=200):
+    def add_100_flow(self, datapath, priority, match, actions, buffer_id=None, table_id=200, redirect_table=False,src_ip="", dst_ip=""):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
+        if redirect_table:
+            inst = []
+            match1 = parser.OFPMatch(ipv4_src=src_ip, ipv4_dst=dst_ip)
+            inst.append(parser.OFPInstructionGotoTable(200))
+            msg = parser.OFPFlowMod(datapath=datapath, table_id=100, priority=3, match=match1, instructions=inst) # more priority than the controller, but less than the decoy flows
+            datapath.send_msg(msg)
+            #print 'sending_redirect_table'
+            table_id = 200
+
         inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
                                              actions)]
-        inst.append(parser.OFPInstructionGotoTable(200))                                             
+                                           
         if buffer_id:
             mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
                                     priority=priority, match=match,
