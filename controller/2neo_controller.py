@@ -57,9 +57,9 @@ class SimpleSwitch13(app_manager.RyuApp):
 
         if redirect_table:
             inst = []
-            match1 = parser.OFPMatch(ipv4_src=src_ip, ipv4_dst=dst_ip)
+            # match1 = parser.OFPMatch(ipv4_src=src_ip, ipv4_dst=dst_ip)
             inst.append(parser.OFPInstructionGotoTable(200))
-            msg = parser.OFPFlowMod(datapath=datapath, table_id=100, priority=3, match=match1, instructions=inst) # more priority than the controller, but less than the decoy flows
+            msg = parser.OFPFlowMod(datapath=datapath, table_id=100, priority=3, match=match, instructions=inst) # more priority than the controller, but less than the decoy flows
             datapath.send_msg(msg)
             #print 'sending_redirect_table'
             table_id = 200
