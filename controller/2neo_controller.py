@@ -47,11 +47,11 @@ class SimpleSwitch13(app_manager.RyuApp):
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
-        self.add_100_flow(datapath, 0, match, actions)
-        self.add_100_flow(datapath, 0, match, actions, table_id=100, redirect_table=True)
+        self.add_flow(datapath, 0, match, actions)
+        # self.new_add_flow(datapath, 0, match, actions, table_id=100, redirect_table=True)
 
 
-    def add_100_flow(self, datapath, priority, match, actions, buffer_id=None, table_id=200, redirect_table=False,src_ip="", dst_ip=""):
+    def new_add_flow(self, datapath, priority, match, actions, buffer_id=None, table_id=200, redirect_table=False,src_ip="", dst_ip=""):
         ofproto = datapath.ofproto
         parser = datapath.ofproto_parser
 
@@ -127,6 +127,10 @@ class SimpleSwitch13(app_manager.RyuApp):
             out_port = ofproto.OFPP_FLOOD
 
         actions = [parser.OFPActionOutput(out_port)]
+
+        if self.flag is False:
+            self.new_add_flow(datapath,msg.buffer_id, table_id=100, redirect_table=True)
+            self.flag = True
 
         # install a flow to avoid packet_in next time
         if out_port != ofproto.OFPP_FLOOD:
