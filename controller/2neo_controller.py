@@ -47,7 +47,7 @@ class SimpleSwitch13(app_manager.RyuApp):
         match = parser.OFPMatch()
         actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
                                           ofproto.OFPCML_NO_BUFFER)]
-        self.add_flow(datapath, 0, match, actions)
+        self.add_100_flow(datapath, 0, match, actions)
         self.add_100_flow(datapath, 0, match, actions, table_id=100, redirect_table=True)
 
 
