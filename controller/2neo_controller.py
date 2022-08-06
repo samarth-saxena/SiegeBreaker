@@ -1,3 +1,5 @@
+# Bottom up: Built upon simple_switch
+
 # Copyright (C) 2011 Nippon Telegraph and Telephone Corporation.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,130 +26,101 @@ from ryu.lib.packet import ether_types
 
 
 class SimpleSwitch13(app_manager.RyuApp):
-    OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
+	OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
-    def __init__(self, *args, **kwargs):
-        super(SimpleSwitch13, self).__init__(*args, **kwargs)
-        self.mac_to_port = {}
-        self.flag = False
-
-
-    @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
-    def switch_features_handler(self, ev):
-        print ('Initialising switch')
-        datapath = ev.msg.datapath
-        ofproto = datapath.ofproto
-        parser = datapath.ofproto_parser
-
-        # install table-miss flow entry
-        #
-        # We specify NO BUFFER to max_len of the output action due to
-        # OVS bug. At this moment, if we specify a lesser number, e.g.,
-        # 128, OVS will send Packet-In with invalid buffer_id and
-        # truncated packet data. In that case, we cannot output packets
-        # correctly.  The bug has been fixed in OVS v2.1.0.
-        match = parser.OFPMatch()
-        actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-                                          ofproto.OFPCML_NO_BUFFER)]
-        self.add_flow(datapath, 0, match, actions)
-        # self.new_add_flow(datapath, 0, match, actions, table_id=100, redirect_table=True)
+	def __init__(self, *args, **kwargs):
+		super(SimpleSwitch13, self).__init__(*args, **kwargs)
+		self.mac_to_port = {}
+		self.flag = False
 
 
-    def new_add_flow(self, datapath, priority, match, actions, buffer_id=None, table_id=200, redirect_table=False,src_ip="", dst_ip=""):
-        ofproto = datapath.ofproto
-        parser = datapath.ofproto_parser
+	@set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
+	def switch_features_handler(self, ev):
+		print ('Initialising switch')
+		datapath = ev.msg.datapath
+		ofproto = datapath.ofproto
+		parser = datapath.ofproto_parser
+		match = parser.OFPMatch()
+		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+										  ofproto.OFPCML_NO_BUFFER)]
+		self.add_flow(datapath, 0, match, actions)
+		# self.new_add_flow(datapath, 0, match, actions, table_id=100, redirect_table=True)
+		inst = []
+			# match1 = parser.OFPMatch(ipv4_src=src_ip, ipv4_dst=dst_ip)
+		inst.append(parser.OFPInstructionGotoTable(200))
+		msg = parser.OFPFlowMod(datapath=datapath, table_id=100, priority=3, match=match, instructions=inst) # more priority than the controller, but less than the decoy flows
+		datapath.send_msg(msg)
 
-        if redirect_table:
-            inst = []
-            # match1 = parser.OFPMatch(ipv4_src=src_ip, ipv4_dst=dst_ip)
-            inst.append(parser.OFPInstructionGotoTable(200))
-            msg = parser.OFPFlowMod(datapath=datapath, table_id=100, priority=3, match=match, instructions=inst) # more priority than the controller, but less than the decoy flows
-            datapath.send_msg(msg)
-            #print 'sending_redirect_table'
-            table_id = 200
+	def add_flow(self, datapath, priority, match, actions, buffer_id=None, table_id=200):
+		ofproto = datapath.ofproto
+		parser = datapath.ofproto_parser
 
-        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
-                                             actions)]
-                                           
-        if buffer_id:
-            mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
-                                    priority=priority, match=match,
-                                    instructions=inst, table_id=table_id)
-        else:
-            mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
-                                    match=match, instructions=inst, table_id=table_id)
-        datapath.send_msg(mod)
+		inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
+											 actions)]
+		if buffer_id:
+			mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
+									priority=priority, match=match,
+									instructions=inst, table_id=table_id)
+		else:
+			mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
+									match=match, instructions=inst, table_id=table_id)
+		datapath.send_msg(mod)
 
-    def add_flow(self, datapath, priority, match, actions, buffer_id=None, table_id=200):
-        ofproto = datapath.ofproto
-        parser = datapath.ofproto_parser
+	@set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
+	def _packet_in_handler(self, ev):
+		# If you hit this you might want to increase
+		# the "miss_send_length" of your switch
+		if ev.msg.msg_len < ev.msg.total_len:
+			self.logger.debug("packet truncated: only %s of %s bytes",
+							  ev.msg.msg_len, ev.msg.total_len)
+		msg = ev.msg
+		datapath = msg.datapath
+		ofproto = datapath.ofproto
+		parser = datapath.ofproto_parser
+		in_port = msg.match['in_port']
 
-        inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
-                                             actions)]
-        if buffer_id:
-            mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
-                                    priority=priority, match=match,
-                                    instructions=inst, table_id=table_id)
-        else:
-            mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
-                                    match=match, instructions=inst, table_id=table_id)
-        datapath.send_msg(mod)
+		pkt = packet.Packet(msg.data)
+		eth = pkt.get_protocols(ethernet.ethernet)[0]
 
-    @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
-    def _packet_in_handler(self, ev):
-        # If you hit this you might want to increase
-        # the "miss_send_length" of your switch
-        if ev.msg.msg_len < ev.msg.total_len:
-            self.logger.debug("packet truncated: only %s of %s bytes",
-                              ev.msg.msg_len, ev.msg.total_len)
-        msg = ev.msg
-        datapath = msg.datapath
-        ofproto = datapath.ofproto
-        parser = datapath.ofproto_parser
-        in_port = msg.match['in_port']
+		if eth.ethertype == ether_types.ETH_TYPE_LLDP:
+			# ignore lldp packet
+			return
+		dst = eth.dst
+		src = eth.src
 
-        pkt = packet.Packet(msg.data)
-        eth = pkt.get_protocols(ethernet.ethernet)[0]
+		dpid = format(datapath.id, "d").zfill(16)
+		self.mac_to_port.setdefault(dpid, {})
 
-        if eth.ethertype == ether_types.ETH_TYPE_LLDP:
-            # ignore lldp packet
-            return
-        dst = eth.dst
-        src = eth.src
+		self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
 
-        dpid = format(datapath.id, "d").zfill(16)
-        self.mac_to_port.setdefault(dpid, {})
+		# learn a mac address to avoid FLOOD next time.
+		self.mac_to_port[dpid][src] = in_port
 
-        self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
+		if dst in self.mac_to_port[dpid]:
+			out_port = self.mac_to_port[dpid][dst]
+		else:
+			out_port = ofproto.OFPP_FLOOD
 
-        # learn a mac address to avoid FLOOD next time.
-        self.mac_to_port[dpid][src] = in_port
+		actions = [parser.OFPActionOutput(out_port)]
 
-        if dst in self.mac_to_port[dpid]:
-            out_port = self.mac_to_port[dpid][dst]
-        else:
-            out_port = ofproto.OFPP_FLOOD
+		if self.flag is False:
+			# self.new_add_flow(datapath,msg.buffer_id, table_id=100, redirect_table=True)
+			self.flag = True
 
-        actions = [parser.OFPActionOutput(out_port)]
+		# install a flow to avoid packet_in next time
+		if out_port != ofproto.OFPP_FLOOD:
+			match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
+			# verify if we have a valid buffer_id, if yes avoid to send both
+			# flow_mod & packet_out
+			if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+				self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+				return
+			else:
+				self.add_flow(datapath, 1, match, actions)
+		data = None
+		if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+			data = msg.data
 
-        if self.flag is False:
-            self.new_add_flow(datapath,msg.buffer_id, table_id=100, redirect_table=True)
-            self.flag = True
-
-        # install a flow to avoid packet_in next time
-        if out_port != ofproto.OFPP_FLOOD:
-            match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
-            # verify if we have a valid buffer_id, if yes avoid to send both
-            # flow_mod & packet_out
-            if msg.buffer_id != ofproto.OFP_NO_BUFFER:
-                self.add_flow(datapath, 1, match, actions, msg.buffer_id)
-                return
-            else:
-                self.add_flow(datapath, 1, match, actions)
-        data = None
-        if msg.buffer_id == ofproto.OFP_NO_BUFFER:
-            data = msg.data
-
-        out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
-                                  in_port=in_port, actions=actions, data=data)
-        datapath.send_msg(out)
+		out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+								  in_port=in_port, actions=actions, data=data)
+		datapath.send_msg(out)
