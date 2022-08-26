@@ -176,7 +176,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 				# timeout = 0 #in case client doesn't supply one, we will use OVS default
 				# timeoutString = icmpData[icmpData.find('Siege')+5: icmpData.find('@')]
 				# dstip = ip_addr_ntoa(icmpData[icmpData.find('@')+1: icmpData.find('#')])
-		dstip="192.168.2.4"
+		dstip="192.168.3.4"
 				# srcport = icmpData[icmpData.find('#')+1: icmpData.find('$')]
 				# if timeoutString != '':
 				#     timeout = int(timeoutString)
